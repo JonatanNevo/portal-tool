@@ -48,9 +48,38 @@ class WindowsConfigurator(Configurator):
                         )
                         typer.echo(f"Clang {major}.{match.group(2)} found{path_info}")
                         clang_valid = True
+
+                        clang_result = subprocess.run(
+                            ["where.exe", "clang"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5,
+                        )
+                        if clang_result.returncode != 0:
+                            typer.echo(
+                                "clang executable exists in PATH but failed to fetch exe location"
+                            )
+                            raise FileNotFoundError
+                        clang_location = clang_result.stdout.strip()
+
+                        clangpp_result = subprocess.run(
+                            ["where.exe", "clang++"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5,
+                        )
+                        if clangpp_result.returncode != 0:
+                            typer.echo(
+                                "clang++ executable exists in PATH but failed to fetch exe location"
+                            )
+                            raise FileNotFoundError
+                        clangpp_location = clangpp_result.stdout.strip()
+
                         found_compilers.append(
                             CompilerDetails(
-                                name="clang", c_compiler="clang", cpp_compiler="clang++"
+                                name="clang",
+                                c_compiler=clang_location,
+                                cpp_compiler=clangpp_location,
                             )
                         )
                     else:
