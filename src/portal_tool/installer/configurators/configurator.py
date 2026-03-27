@@ -50,7 +50,9 @@ class Configurator(metaclass=abc.ABCMeta):
         self._validate_dependencies()
 
     def _try_install_vcpkg(self) -> None:
-        install_vcpkg = typer.confirm("Would you like to install vcpkg?")
+        install_vcpkg = typer.confirm(
+            "Would you like to install a global vcpkg? (if not, a local submodule will be created for each project)"
+        )
         if not install_vcpkg:
             typer.echo(
                 "Skipping global vcpkg installation, make sure to configure it as submodule for your projects..."
