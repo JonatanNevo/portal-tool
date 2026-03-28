@@ -1,6 +1,7 @@
 import enum
 import importlib
 import importlib.util
+import json
 import os
 import pathlib
 import shlex
@@ -57,7 +58,9 @@ class RepoMaker:
 
         self._create_repo_from_template()
 
-        use_example = typer.confirm("Would you like to use an example project?")
+        use_example = typer.confirm(
+            "Would you like to use an example project?", default=True
+        )
         if use_example:
             available_examples = self.framework_manager.list_examples()
 
@@ -83,6 +86,7 @@ class RepoMaker:
         self._configure_git()
         self._setup_vcpkg()
         self._configure_build_system()
+        self._update_vcpkg_baseline()
 
     def _find_pacakge_path(self) -> pathlib.Path:
         source_path = "templates/repo/bootstrap"
@@ -140,6 +144,7 @@ class RepoMaker:
             extra_context={
                 "project_name": self.name,
                 "engine_version": self.framework_manager.get_engine_version(),
+                "vcpkg_baseline": self.framework_manager.get_vcpkg_baseline_hash(),
             },
             output_dir=self.base_path.as_posix(),
         )
@@ -154,7 +159,8 @@ class RepoMaker:
         self.use_global = False
         if vcpkg_root:
             self.use_global = typer.confirm(
-                f"Found global vcpkg, [{vcpkg_root}] would you like to use? (if not, a local submodule will be created)"
+                f"Found global vcpkg, [{vcpkg_root}] would you like to use? (if not, a local submodule will be created)",
+                default=True,
             )
 
         if not self.use_global:
@@ -235,13 +241,11 @@ class RepoMaker:
                     "CMAKE_CXX_COMPILER": project_compiler.cpp_compiler,
                 }
             )
-            base.environment.update(
-                {
-                    "PORTAL_C_COMPILER": project_compiler.c_compiler,
-                    "PORTAL_CPP_COMPILER": project_compiler.cpp_compiler,
-                    "VCPKG_KEEP_ENV_VARS": "PORTAL_C_COMPILER;PORTAL_CPP_COMPILER;PATH",
-                }
-            )
+            base.environment = {
+                "PORTAL_C_COMPILER": project_compiler.c_compiler,
+                "PORTAL_CPP_COMPILER": project_compiler.cpp_compiler,
+                "VCPKG_KEEP_ENV_VARS": "PORTAL_C_COMPILER;PORTAL_CPP_COMPILER;PATH",
+            }
 
         # TODO: determine generator (ninja-multi, xcode, vs)
         ninja_multi = ConfigurePreset(
@@ -308,8 +312,37 @@ class RepoMaker:
             self.framework_manager.get_vcpkg_configuration()
         )
 
+    def _update_vcpkg_baseline(self) -> None:
         output = subprocess.check_output(
-            shlex.split(f"{self.vcpkg_exec_location.as_posix()} x-update-baseline"),
+            shlex.split(
+                f"{self.vcpkg_exec_location.as_posix()} x-update-baseline --dry-run"
+            ),
             cwd=self.project_path.as_posix(),
         )
-        typer.echo(output.decode())
+
+        portal_vcpkg_baseline = None
+        output_lines = output.decode().splitlines()
+        for line in output_lines:
+            if "https://github.com/JonatanNevo/portal-vcpkg-registry" in line:
+                portal_vcpkg_baseline = line.split(" ")[-1].strip("'")
+
+        if portal_vcpkg_baseline is None:
+            typer.echo(
+                "Failed to update portal-vcpkg-registry baseline, please make sure it points the correct commit."
+            )
+            return
+
+        vcpkg_configuration = json.loads(
+            (self.project_path / "vcpkg-configuration.json").read_text()
+        )
+        for registry in vcpkg_configuration["registries"]:
+            if (
+                registry["repository"]
+                == "https://github.com/JonatanNevo/portal-vcpkg-registry"
+            ):
+                registry["baseline"] = portal_vcpkg_baseline
+        json.dump(
+            vcpkg_configuration,
+            (self.project_path / "vcpkg-configuration.json").open("w"),
+            indent=2,
+        )

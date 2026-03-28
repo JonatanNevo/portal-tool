@@ -1,5 +1,6 @@
 {
   "project_name": "Portal Bootstrap Game",
   "project_slug": "{{ cookiecutter.project_name.lower().replace(' ', '-') }}",
-  "engine_version": "0.1.9"
+  "engine_version": "0.1.9",
+  "vcpkg_baseline": ""
 }
