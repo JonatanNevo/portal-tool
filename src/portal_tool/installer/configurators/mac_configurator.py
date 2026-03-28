@@ -21,7 +21,12 @@ class MacConfigurator(Configurator):
     def validate_compilers(self) -> list[CompilerDetails]:
         typer.echo("Missing compiler validation, skipping...")
         return [
-            CompilerDetails(name="clang", c_compiler="clang", cpp_compiler="clang++")
+            CompilerDetails(
+                name="clang",
+                c_compiler="clang",
+                cpp_compiler="clang++",
+                default_compiler=True,
+            )
         ]
 
     def get_script_extension(self) -> str:

@@ -223,17 +223,25 @@ class RepoMaker:
             hidden=True,
             binary_dir="${sourceDir}/build/${presetName}",
             cache_variables={
-                "CMAKE_C_COMPILER": project_compiler.c_compiler,
-                "CMAKE_CXX_COMPILER": project_compiler.cpp_compiler,
                 "CMAKE_TOOLCHAIN_FILE": self.vcpkg_toolchain_location,
                 "CMAKE_CONFIGURATION_TYPES": "Debug;RelWithDebInfo;Release",
             },
-            environment={
-                "PORTAL_C_COMPILER": project_compiler.c_compiler,
-                "PORTAL_CPP_COMPILER": project_compiler.cpp_compiler,
-                "VCPKG_KEEP_ENV_VARS": "PORTAL_C_COMPILER;PORTAL_CPP_COMPILER;PATH",
-            },
         )
+
+        if not project_compiler.default_compiler:
+            base.cache_variables.update(
+                {
+                    "CMAKE_C_COMPILER": project_compiler.c_compiler,
+                    "CMAKE_CXX_COMPILER": project_compiler.cpp_compiler,
+                }
+            )
+            base.environment.update(
+                {
+                    "PORTAL_C_COMPILER": project_compiler.c_compiler,
+                    "PORTAL_CPP_COMPILER": project_compiler.cpp_compiler,
+                    "VCPKG_KEEP_ENV_VARS": "PORTAL_C_COMPILER;PORTAL_CPP_COMPILER;PATH",
+                }
+            )
 
         # TODO: determine generator (ninja-multi, xcode, vs)
         ninja_multi = ConfigurePreset(

@@ -116,7 +116,12 @@ class WindowsConfigurator(Configurator):
                     typer.echo(f"MSVC {version_str} found{path_info}")
                     msvc_valid = True
                     found_compilers.append(
-                        CompilerDetails(name="msvc", c_compiler="cl", cpp_compiler="cl")
+                        CompilerDetails(
+                            name="msvc",
+                            c_compiler="cl",
+                            cpp_compiler="cl",
+                            default_compiler=True,
+                        )
                     )
                 else:
                     typer.echo(f"MSVC {version_str} found, but version 17+ is required")
