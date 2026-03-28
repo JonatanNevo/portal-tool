@@ -84,6 +84,14 @@ class FrameworkManager:
     def get_engine_version(self) -> str:
         return self.git_manager.get_version("engine")
 
+    def get_vcpkg_baseline_hash(self) -> str:
+        vcpkg_path = self.framework_path / "vcpkg.json"
+        if not vcpkg_path.exists():
+            typer.Abort("Could not find vcpkg.json in framework folder.")
+
+        baseline = json.load(vcpkg_path.open())["builtin-baseline"]
+        return baseline
+
     def list_examples(self) -> list[str]:
         examples_folder = self.framework_path / "examples"
         if not examples_folder.exists():

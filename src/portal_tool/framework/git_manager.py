@@ -150,7 +150,7 @@ class GitManager(metaclass=Singleton):
             stream=True,
         )
         total_size = int(response.headers.get("content-length", 0))
-        block_size = 8192
+        block_size = 2048
 
         with tqdm(
             desc="Downloading ref for sha calculation",
