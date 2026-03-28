@@ -152,7 +152,10 @@ class LinuxConfigurator(Configurator):
                         gcc_valid = True
                         found_compilers.append(
                             CompilerDetails(
-                                name="gcc", c_compiler="gcc", cpp_compiler="g++"
+                                name="gcc",
+                                c_compiler="gcc",
+                                cpp_compiler="g++",
+                                default_compiler=True,
                             )
                         )
                     else:

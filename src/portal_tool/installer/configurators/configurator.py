@@ -17,6 +17,7 @@ class CompilerDetails:
     name: str
     c_compiler: str
     cpp_compiler: str
+    default_compiler: bool = False
 
 
 class Configurator(metaclass=abc.ABCMeta):
