@@ -1,6 +1,6 @@
 [project]
 name = "portal_tool"
-version = "0.2.5"
+version = "0.2.6"
 description = "Assortment of tools for the Portal project"
 authors = [{ name = "Jonatan Nevo", email = "jonatannevo-git@proton.me" }]
 requires-python = ">=3.12,<3.15"
