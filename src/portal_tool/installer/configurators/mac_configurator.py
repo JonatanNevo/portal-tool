@@ -2,6 +2,7 @@ import logging
 
 import typer
 
+from portal_tool.installer.repo.build_models import ConfigurePreset
 from portal_tool.installer.configurators.configurator import (
     Configurator,
     CompilerDetails,
@@ -21,13 +22,15 @@ class MacConfigurator(Configurator):
     def validate_compilers(self) -> list[CompilerDetails]:
         typer.echo("Missing compiler validation, skipping...")
         return [
-            CompilerDetails(
-                name="clang",
-                c_compiler="clang",
-                cpp_compiler="clang++",
-                default_compiler=True,
-            )
+            CompilerDetails(name="clang", c_compiler="clang", cpp_compiler="clang++")
         ]
+
+    def generate_configuration_preset(
+        self, compiler: CompilerDetails
+    ) -> ConfigurePreset:
+        return ConfigurePreset(
+            name="ninja-multi", inherits=["base"], generator="Ninja Multi-Config"
+        )
 
     def get_script_extension(self) -> str:
         return "sh"

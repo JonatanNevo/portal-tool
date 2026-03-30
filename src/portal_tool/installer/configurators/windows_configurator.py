@@ -7,6 +7,7 @@ import pathlib
 
 import typer
 
+from portal_tool.installer.repo.build_models import ConfigurePreset
 from portal_tool.installer.configurators.configurator import (
     Configurator,
     CompilerDetails,
@@ -115,12 +116,35 @@ class WindowsConfigurator(Configurator):
                     )
                     typer.echo(f"MSVC {version_str} found{path_info}")
                     msvc_valid = True
+
+                    vs_install_path = pathlib.Path(installation_path.group(1).strip())
+                    msvc_tools_dir = vs_install_path / "VC" / "Tools" / "MSVC"
+                    if not msvc_tools_dir.exists():
+                        typer.echo("MSVC tools directory not found")
+                        raise FileNotFoundError
+                    toolset_versions = os.listdir(msvc_tools_dir)
+                    if not toolset_versions:
+                        typer.echo("No MSVC toolset versions found")
+                        raise FileNotFoundError
+                    toolset_version = sorted(toolset_versions)[-1]
+                    cl_path = (
+                        msvc_tools_dir
+                        / toolset_version
+                        / "bin"
+                        / "Hostx64"
+                        / "x64"
+                        / "cl.exe"
+                    )
+                    if not cl_path.exists():
+                        typer.echo(f"cl.exe not found at {cl_path}")
+                        raise FileNotFoundError
+                    cl_location = str(cl_path)
+
                     found_compilers.append(
                         CompilerDetails(
                             name="msvc",
-                            c_compiler="cl",
-                            cpp_compiler="cl",
-                            default_compiler=True,
+                            c_compiler=cl_location,
+                            cpp_compiler=cl_location,
                         )
                     )
                 else:
@@ -141,6 +165,21 @@ class WindowsConfigurator(Configurator):
 
         typer.echo("Compiler validation successful!")
         return found_compilers
+
+    def generate_configuration_preset(
+        self, compiler: CompilerDetails
+    ) -> ConfigurePreset:
+        if compiler.name == "msvc":
+            return ConfigurePreset(
+                name="msvc-toolchain",
+                inherits=["base"],
+                generator="Visual Studio 18 2026",
+                # TODO choose correct visual studio based on whats installed
+            )
+        else:
+            return ConfigurePreset(
+                name="ninja-multi", inherits=["base"], generator="Ninja Multi-Config"
+            )
 
     def get_script_extension(self) -> str:
         return "bat"

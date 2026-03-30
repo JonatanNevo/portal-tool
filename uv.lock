@@ -386,7 +386,7 @@ wheels = [
 
 [[package]]
 name = "portal-tool"
-version = "0.2.6"
+version = "0.2.7"
 source = { editable = "." }
 dependencies = [
     { name = "appdirs" },

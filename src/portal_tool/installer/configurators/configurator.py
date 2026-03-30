@@ -11,13 +11,14 @@ from dataclasses import dataclass
 
 import typer
 
+from portal_tool.installer.repo.build_models import ConfigurePreset
+
 
 @dataclass(frozen=True)
 class CompilerDetails:
     name: str
     c_compiler: str
     cpp_compiler: str
-    default_compiler: bool = False
 
 
 class Configurator(metaclass=abc.ABCMeta):
@@ -134,4 +135,10 @@ class Configurator(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def validate_compilers(self) -> list[CompilerDetails]:
+        pass
+
+    @abc.abstractmethod
+    def generate_configuration_preset(
+        self, compiler: CompilerDetails
+    ) -> ConfigurePreset:
         pass

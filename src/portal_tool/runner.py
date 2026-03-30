@@ -1,3 +1,4 @@
+import json
 import shlex
 import subprocess
 from enum import Enum
@@ -25,6 +26,19 @@ CMAKE_CONFIGURATION: dict[Configuration, str] = {
 }
 
 runner = typer.Typer()
+
+
+def find_configure_preset_name(working_dir: pathlib.Path) -> str:
+    presets_path = working_dir / "CMakePresets.json"
+    if not presets_path.exists():
+        raise typer.Abort("CMakePresets.json not found in the working directory.")
+
+    presets = json.loads(presets_path.read_text())
+    for preset in presets.get("configurePresets", []):
+        if not preset.get("hidden", False):
+            return preset["name"]
+
+    raise typer.Abort("No visible configure preset found in CMakePresets.json.")
 
 
 def first_cmake_call_arg(text: str, func_name: str) -> str | None:
@@ -66,38 +80,45 @@ class Runner:
         self,
         working_dir: pathlib.Path,
         configuration: Configuration,
-        build_path: pathlib.Path,
+        build_path: pathlib.Path | None,
         cmake_configuration: str | None,
     ):
         self.working_dir = working_dir
         self.configuration = configuration
         self.configurator = ConfiguratorFactory().create(False)
+        self.preset_name = find_configure_preset_name(working_dir)
 
         self.cmake_configuration = cmake_configuration
         if self.cmake_configuration is None:
             self.cmake_configuration = CMAKE_CONFIGURATION[configuration]
 
+        if build_path is None:
+            build_path = pathlib.Path("build") / self.preset_name
+
         self.target_name = find_target_name(working_dir / "CMakeLists.txt")
         self.executable_dir = working_dir / build_path / self.cmake_configuration
 
-    def validate_executable(self, executable: str) -> None:
+    def build_executable(self) -> None:
+        subprocess.run(
+            shlex.split(f"cmake --fresh --preset {self.preset_name}"),
+            cwd=self.working_dir,
+            check=True,
+        )
+
+        subprocess.run(
+            shlex.split(f"cmake --build --preset {self.configuration.name}"),
+            cwd=self.working_dir,
+            check=True,
+        )
+
+    def validate_executable(self, executable: str, clean: bool) -> None:
         exe_path = pathlib.Path(executable)
-        if not exe_path.exists():
+        if clean or not exe_path.exists():
             typer.confirm(
                 "No executable found. Would you like to build it now?", abort=True
             )
 
-            subprocess.run(
-                shlex.split("cmake --preset ninja-multi"),
-                cwd=self.working_dir,
-                check=True,
-            )
-
-            subprocess.run(
-                shlex.split(f"cmake --build --preset {self.configuration.name}"),
-                cwd=self.working_dir,
-                check=True,
-            )
+            self.build_executable()
 
     def run(self, *args: str) -> None:
         subprocess.Popen([*args], cwd=self.executable_dir)
@@ -116,11 +137,11 @@ def run_editor(
         typer.Option("-c", "--configuration", help="Which configuration to use/build"),
     ] = Configuration.development,
     build_path: Annotated[
-        pathlib.Path,
+        pathlib.Path | None,
         typer.Option(
             "-b", "--build-path", help="The path to the build directory, (relative)"
         ),
-    ] = pathlib.Path("build") / "ninja-multi",
+    ] = None,
     cmake_configuration: Annotated[
         str | None,
         typer.Option(
@@ -128,10 +149,14 @@ def run_editor(
             help="The path in the build directory for the configuration",
         ),
     ] = None,
+    clean: Annotated[
+        bool,
+        typer.Option("--clean", help="Always rebuild the executable before running"),
+    ] = False,
 ):
     engine_runner = Runner(working_dir, configuration, build_path, cmake_configuration)
     executable = f"{engine_runner.executable_dir / engine_runner.target_name}_editor{engine_runner.configurator.get_executable_extension()}"
-    engine_runner.validate_executable(executable)
+    engine_runner.validate_executable(executable, clean=clean)
 
     typer.echo(f"Running editor from: {executable}")
     engine_runner.run(executable, "-p", f"{working_dir}")
@@ -150,9 +175,9 @@ def run_runtime(
         typer.Option("-c", "--configuration", help="Which configuration to use/build"),
     ] = Configuration.development,
     build_path: Annotated[
-        pathlib.Path,
+        pathlib.Path | None,
         typer.Option("-b", "--build-path", help="The path to the build directory"),
-    ] = pathlib.Path("build") / "ninja-multi",
+    ] = None,
     cmake_configuration: Annotated[
         str | None,
         typer.Option(
@@ -160,10 +185,14 @@ def run_runtime(
             help="The path in the build directory for the configuration",
         ),
     ] = None,
+    clean: Annotated[
+        bool,
+        typer.Option("--clean", help="Always rebuild the executable before running"),
+    ] = False,
 ):
     engine_runner = Runner(working_dir, configuration, build_path, cmake_configuration)
     executable = f"{engine_runner.executable_dir / engine_runner.target_name}{engine_runner.configurator.get_executable_extension()}"
-    engine_runner.validate_executable(executable)
+    engine_runner.validate_executable(executable, clean=clean)
 
     typer.echo(f"Running game from: {executable}")
     engine_runner.run(executable)

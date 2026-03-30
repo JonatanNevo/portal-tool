@@ -231,41 +231,32 @@ class RepoMaker:
             cache_variables={
                 "CMAKE_TOOLCHAIN_FILE": self.vcpkg_toolchain_location,
                 "CMAKE_CONFIGURATION_TYPES": "Debug;RelWithDebInfo;Release",
+                "CMAKE_C_COMPILER": project_compiler.c_compiler,
+                "CMAKE_CXX_COMPILER": project_compiler.cpp_compiler,
             },
         )
+        base.environment = {
+            "PORTAL_C_COMPILER": project_compiler.c_compiler,
+            "PORTAL_CPP_COMPILER": project_compiler.cpp_compiler,
+            "VCPKG_KEEP_ENV_VARS": "PORTAL_C_COMPILER;PORTAL_CPP_COMPILER;PATH",
+        }
 
-        if not project_compiler.default_compiler:
-            base.cache_variables.update(
-                {
-                    "CMAKE_C_COMPILER": project_compiler.c_compiler,
-                    "CMAKE_CXX_COMPILER": project_compiler.cpp_compiler,
-                }
-            )
-            base.environment = {
-                "PORTAL_C_COMPILER": project_compiler.c_compiler,
-                "PORTAL_CPP_COMPILER": project_compiler.cpp_compiler,
-                "VCPKG_KEEP_ENV_VARS": "PORTAL_C_COMPILER;PORTAL_CPP_COMPILER;PATH",
-            }
+        generator = self.configurator.generate_configuration_preset(project_compiler)
 
-        # TODO: determine generator (ninja-multi, xcode, vs)
-        ninja_multi = ConfigurePreset(
-            name="ninja-multi", inherits=[base.name], generator="Ninja Multi-Config"
-        )
-
-        self.presets.configure_presets = [base, ninja_multi]
+        self.presets.configure_presets = [base, generator]
 
         self.presets.build_presets = [
             BuildPreset(
-                name="debug", configure_preset=ninja_multi.name, configuration="Debug"
+                name="debug", configure_preset=generator.name, configuration="Debug"
             ),
             BuildPreset(
                 name="development",
-                configure_preset=ninja_multi.name,
+                configure_preset=generator.name,
                 configuration="RelWithDebInfo",
             ),
             BuildPreset(
                 name="dist",
-                configure_preset=ninja_multi.name,
+                configure_preset=generator.name,
                 configuration="Release",
             ),
         ]
@@ -273,13 +264,13 @@ class RepoMaker:
         self.presets.package_presets = [
             PackagePreset(
                 name="pack-zip",
-                configure_preset=ninja_multi.name,
+                configure_preset=generator.name,
                 package_directory="${sourceDir}/dist",
                 generators=["ZIP"],
             ),
             PackagePreset(
                 name="pack-installer",
-                configure_preset=ninja_multi.name,
+                configure_preset=generator.name,
                 package_directory="${sourceDir}/dist",
                 generators=["IFW"],
             ),
@@ -289,7 +280,7 @@ class RepoMaker:
             WorkflowPreset(
                 name="package-zip",
                 steps=[
-                    WorkflowStep(name=ninja_multi.name, type="configure"),
+                    WorkflowStep(name=generator.name, type="configure"),
                     WorkflowStep(name="dist", type="build"),
                     WorkflowStep(name="pack-zip", type="package"),
                 ],
@@ -297,7 +288,7 @@ class RepoMaker:
             WorkflowPreset(
                 name="package-installer",
                 steps=[
-                    WorkflowStep(name=ninja_multi.name, type="configure"),
+                    WorkflowStep(name=generator.name, type="configure"),
                     WorkflowStep(name="dist", type="build"),
                     WorkflowStep(name="pack-installer", type="package"),
                 ],

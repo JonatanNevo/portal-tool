@@ -7,6 +7,7 @@ import subprocess
 
 import typer
 
+from portal_tool.installer.repo.build_models import ConfigurePreset
 from portal_tool.installer.configurators.configurator import (
     Configurator,
     CompilerDetails,
@@ -152,10 +153,7 @@ class LinuxConfigurator(Configurator):
                         gcc_valid = True
                         found_compilers.append(
                             CompilerDetails(
-                                name="gcc",
-                                c_compiler="gcc",
-                                cpp_compiler="g++",
-                                default_compiler=True,
+                                name="gcc", c_compiler="gcc", cpp_compiler="g++"
                             )
                         )
                     else:
@@ -175,6 +173,13 @@ class LinuxConfigurator(Configurator):
 
         typer.echo("Compiler validation successful!")
         return found_compilers
+
+    def generate_configuration_preset(
+        self, compiler: CompilerDetails
+    ) -> ConfigurePreset:
+        return ConfigurePreset(
+            name="ninja-multi", inherits=["base"], generator="Ninja Multi-Config"
+        )
 
     def _validate_dependencies(self) -> None:
         dependency_map = {
